@@ -62,6 +62,9 @@ class TestPlanner(unittest.TestCase):
             params.get_end_effector_translational_velocity_limits()[1],
             [1, 2, 3])
 
+        params.get_reference_frame
+        params.set_reference_frame
+
         # Test a basic call for the API. These values intentionally have no
         # physical meaning.
         result = mut.DoDifferentialInverseKinematics(
@@ -98,13 +101,27 @@ class TestPlanner(unittest.TestCase):
 
         context = plant.CreateDefaultContext()
         frame = plant.GetFrameByName("Link2")
+
+        world_frame = plant.world_frame()
+
         parameters = mut.DifferentialInverseKinematicsParameters(2, 2)
 
-        mut.DoDifferentialInverseKinematics(plant, context,
-                                            np.zeros(6), frame, parameters)
+        mut.DoDifferentialInverseKinematics(
+            robot=plant,
+            context=context,
+            V_AE_desired=np.zeros(6),
+            frame_E=frame,
+            parameters=parameters)
 
-        mut.DoDifferentialInverseKinematics(plant, context, RigidTransform(),
-                                            frame, parameters)
+        mut.DoDifferentialInverseKinematics(
+            robot=plant,
+            context=context,
+            X_AE_desired=RigidTransform(),
+            frame_E=frame,
+            parameters=parameters)
+
+        parameters.set_reference_frame(world_frame)
+        self.assertEqual(parameters.get_reference_frame(), world_frame)
 
     def test_diff_ik_integrator(self):
         file_name = FindResourceOrThrow(

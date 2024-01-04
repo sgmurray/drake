@@ -60,7 +60,8 @@ class DifferentialInverseKinematicsParameters {
    * Constructor. Initializes the nominal joint position to zeros of size
    * @p num_positions. The time step is initialized to 1. The end effector
    * flags are initialized to True. The joint centering gains are initialized
-   * to zero. All constraints are initialized to nullopt.
+   * to zero. All constraints are initialized to nullopt. The reference frame
+   * frame_A is initialized as nullptr which is interpreted as the world frame.
    * @param num_positions Number of generalized positions.
    * @param num_velocities Number of generalized velocities (by default it will
    * be set to num_positions).
@@ -116,8 +117,14 @@ class DifferentialInverseKinematicsParameters {
     return translational_velocity_bounds_;
   }
 
+  const multibody::Frame<double>*
+  get_reference_frame()const{
+    return frame_A_;
+  }
+
   const std::vector<std::shared_ptr<solvers::LinearConstraint>>&
   get_linear_velocity_constraints() const;
+
   /// @}
 
   /// @name Setters.
@@ -244,6 +251,15 @@ class DifferentialInverseKinematicsParameters {
     translational_velocity_bounds_ = std::pair(lower, upper);
   }
 
+   /**
+   * Sets the frame_A reference frame.
+   * @param frame_A Reference frame (inertial or non-inertial).
+   * A nullptr is interpreted as the world frame.
+   */
+  void set_reference_frame(const multibody::Frame<double>* frame_A){
+    frame_A_ = frame_A;
+  }
+
   /// @}
 
   /**
@@ -277,6 +293,7 @@ class DifferentialInverseKinematicsParameters {
       translational_velocity_bounds_{};
   std::vector<std::shared_ptr<solvers::LinearConstraint>>
       linear_velocity_constraints_;
+  const multibody::Frame<double>* frame_A_{nullptr};
 };
 
 /**
@@ -358,14 +375,16 @@ DifferentialInverseKinematicsResult DoDifferentialInverseKinematics(
 // TODO(russt): V_WE_desired should be of type SpatialVelocity.
 /**
  * A wrapper over DoDifferentialInverseKinematics(q_current, v_current, V, J,
- * params) that tracks frame E's spatial velocity. q_current and v_current are
- * taken from @p context. V and J are expressed in E, and only the elements
- * with non-zero gains in @p parameters get_end_effector_velocity_gains() are
- * used in the program.
+ * params) that tracks frame E's spatial velocity in frame A.
+ * q_current and v_current are taken from @p context , and frame A is taken
+ * from @p parameters. V and J are expressed in E, and only the elements with
+ * non-zero gains in @p parameters get_end_effector_velocity_gains()
+ * are used in the program.
  * @param robot A MultibodyPlant model.
  * @param context Must be the Context of the MultibodyPlant. Contains the
  * current generalized position and velocity.
- * @param V_WE_desired Desired world frame spatial velocity of @p frame_E.
+ * @param V_AE_desired Desired spatial velocity of @p frame_E in frame A.
+ * Frame A defaults to the world frame, but can be changed using @p parameters.
  * @param frame_E End effector frame.
  * @param parameters Collection of various problem specific constraints and
  * constants.
@@ -377,20 +396,22 @@ DifferentialInverseKinematicsResult DoDifferentialInverseKinematics(
 DifferentialInverseKinematicsResult DoDifferentialInverseKinematics(
     const MultibodyPlant<double>& robot,
     const systems::Context<double>& context,
-    const Vector6<double>& V_WE_desired,
+    const Vector6<double>& V_AE_desired,
     const Frame<double>& frame_E,
     const DifferentialInverseKinematicsParameters& parameters);
 
+
 /**
- * A wrapper over DoDifferentialInverseKinematics(robot, context, V_WE_desired,
- * frame_E, params) that tracks frame E's pose in the world frame. q_current
- * and v_current are taken from @p cache. V_WE is computed by
- * ComputePoseDiffInCommonFrame(X_WE, X_WE_desired) / dt, where X_WE is
- * computed from @p context, and dt is taken from @p parameters.
+ * A wrapper over DoDifferentialInverseKinematics(robot, context, V_AE_desired,
+ * frame_E, params) that tracks frame E's pose in frame A. q_current
+ * and v_current are taken from @p context. V_AE is computed by
+ * ComputePoseDiffInCommonFrame(X_AE, X_AE_desired) / dt, where X_WE is
+ * computed from @p context, and dt and frame_A are taken from @p parameters.
  * @param robot A MultibodyPlant model.
  * @param context Must be the Context of the MultibodyPlant. Contains the
  * current generalized position and velocity.
- * @param X_WE_desired Desired pose of @p frame_E in the world frame.
+ * @param X_AE_desired Desired pose of @p frame_E in @p frame_A.
+ * Frame A defaults to the world frame, but can be changed using @p parameters.
  * @param frame_E End effector frame.
  * @param parameters Collection of various problem specific constraints and
  * constants.
@@ -402,7 +423,7 @@ DifferentialInverseKinematicsResult DoDifferentialInverseKinematics(
 DifferentialInverseKinematicsResult DoDifferentialInverseKinematics(
     const MultibodyPlant<double>& robot,
     const systems::Context<double>& context,
-    const math::RigidTransform<double>& X_WE_desired,
+    const math::RigidTransform<double>& X_AE_desired,
     const Frame<double>& frame_E,
     const DifferentialInverseKinematicsParameters& parameters);
 
